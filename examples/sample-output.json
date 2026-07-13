@@ -1,0 +1,38 @@
+{
+  "brand": "Firecrawl",
+  "category": "web scraping and web data extraction APIs",
+  "engines": [
+    "perplexity"
+  ],
+  "organic_named": {
+    "perplexity": {
+      "named": 0,
+      "total": 3
+    }
+  },
+  "supply_chain": {
+    "perplexity": {
+      "brightdata.com": 3,
+      "facebook.com": 1,
+      "reddit.com": 5,
+      "scrapfly.io": 1,
+      "ebdataguru.com": 1,
+      "scrapebadger.com": 1,
+      "olostep.com": 1,
+      "fastcrw.com": 1,
+      "capsolver.com": 1,
+      "stackoverflow.com": 1,
+      "bytetunnels.com": 1,
+      "infatica.io": 1,
+      "medium.com": 1,
+      "tendem.ai": 1,
+      "designrush.com": 1,
+      "scraperapi.com": 1,
+      "dev.to": 1,
+      "scrape.do": 1,
+      "scrapingdog.com": 1,
+      "scrapecreators.com": 1
+    }
+  },
+  "generated_at": 1783944364
+}

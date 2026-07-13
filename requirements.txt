@@ -1,0 +1,2 @@
+# No third-party dependencies. Python 3.8+ standard library only.
+# OpenRouter API key via the OPENROUTER_API_KEY environment variable.

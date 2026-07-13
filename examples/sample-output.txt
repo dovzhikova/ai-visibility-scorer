@@ -1,0 +1,31 @@
+======================================================================
+  AI VISIBILITY — Firecrawl
+  category: web scraping and web data extraction APIs
+======================================================================
+
+1. ORGANIC VISIBILITY  (non-branded questions — earned, not recalled)
+   Each engine scored on its own. There is no single blended number,
+   on purpose: the same brand ranks differently on each engine.
+
+   perplexity     named in 1/3 organic answers · citation share among tracked vendors: 40% (2/5)
+
+2. BRANDED RECALL  (does the engine know you when handed your name?)
+   Reported separately. High here + low above = a discovery problem,
+   not an awareness problem. Do not blend this into visibility.
+
+   perplexity     recognized in 5/5 branded prompts
+
+3. NAMED INSTEAD OF YOU  (organic questions — your competitive set)
+
+   perplexity:
+      2x  Bright Data
+      1x  ScrapingBee
+      1x  Firecrawl  <- you
+
+4. CITATION SUPPLY CHAIN  (the domains engines cite — where to earn a mention)
+   Engines cite what other people publish, not your own site. This is
+   your content-placement roadmap.
+
+   perplexity: brightdata.com (4), scrape.do (3), firecrawl.dev (3), reddit.com (2), scrapingdog.com (1), olostep.com (1), proxying.io (1), capsolver.com (1), designrush.com (1), zyte.com (1)
+
+----------------------------------------------------------------------
