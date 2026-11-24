@@ -136,8 +136,9 @@ def generate_prompts(category: str, key: str, n: int, model: str) -> list[str]:
 
 def host(url: str) -> str:
     try:
-        return urlparse(url).netloc.lower().lstrip("www.")
-    except Exception:  # noqa: BLE001
+        hostname = (urlparse(url).hostname or "").lower().rstrip(".")
+        return hostname[4:] if hostname.startswith("www.") else hostname
+    except ValueError:
         return ""
 
 
@@ -150,8 +151,10 @@ def domain_owner(url: str, owned: dict[str, str]) -> str | None:
 
 
 def named_in(text: str, names: list[str]) -> set[str]:
-    t = (text or "").lower()
-    return {n for n in names if n.lower() in t}
+    return {
+        name for name in names
+        if name and re.search(r"(?<!\w)" + re.escape(name) + r"(?!\w)", text or "", re.IGNORECASE)
+    }
 
 
 def run(args) -> None:
@@ -167,10 +170,10 @@ def run(args) -> None:
     # name -> domain, for every tracked vendor (you + competitors)
     owned = {}
     if args.domain:
-        owned[args.domain.lower()] = args.brand
+        owned[host("//" + args.domain)] = args.brand
     for name, dom in competitors.items():
         if dom:
-            owned[dom] = name
+            owned[host("//" + dom)] = name
     tracked_names = [args.brand] + list(competitors)
 
     engines = list(DEFAULT_ENGINES)
@@ -179,8 +182,19 @@ def run(args) -> None:
         engines = [e for e in DEFAULT_ENGINES if e["name"] in wanted] or engines
 
     gen_model = engines[0]["model"] if engines else "perplexity/sonar"
-    print(f"Generating {args.prompts} non-branded buyer questions for: {args.category}")
-    organic = generate_prompts(args.category, key, args.prompts, gen_model)
+    if args.prompt_file:
+        try:
+            with open(args.prompt_file, encoding="utf-8") as stream:
+                organic = [line.strip() for line in stream if line.strip()]
+        except (OSError, UnicodeError) as exc:
+            die(f"Cannot read prompt file: {exc}")
+        if not organic or len(set(organic)) != len(organic):
+            die("Supply at least one buyer question and remove duplicate lines.")
+    else:
+        print(f"Generating {args.prompts} non-branded buyer questions for: {args.category}")
+        organic = generate_prompts(args.category, key, args.prompts, gen_model)
+    if any(named_in(q, tracked_names) for q in organic):
+        die("A buyer question contains a tracked brand. Use unbranded questions.")
     for q in organic:
         print(f"  · {q}")
     branded = [t.format(brand=args.brand) for t in BRANDED_TEMPLATES]
@@ -189,24 +203,25 @@ def run(args) -> None:
     jobs += [("branded", q, e) for q in branded for e in engines]
     print(f"\nRunning {len(jobs)} calls across {len(engines)} engine(s)...\n")
 
-    results = []
-
     def one(kind, prompt, engine):
+        check = {"kind": kind, "engine": engine["name"], "model": engine["model"],
+                 "prompt": prompt, "cites_web": engine["cites"]}
         try:
             content, cites = openrouter(engine["model"], prompt, key)
-            return {"kind": kind, "engine": engine["name"], "cites_web": engine["cites"],
-                    "prompt": prompt, "content": content, "citations": cites, "err": None}
-        except Exception as e:  # noqa: BLE001
-            return {"kind": kind, "engine": engine["name"], "prompt": prompt,
-                    "err": f"{type(e).__name__}: {e}"}
+            if not content.strip():
+                raise ValueError("Empty model response")
+            check.update(content=content, citations=list(dict.fromkeys(cites)), err=None)
+        except Exception as exc:
+            check.update(content=None, citations=[], err=f"{type(exc).__name__}: {exc}")
+        return check
 
     with ThreadPoolExecutor(max_workers=args.concurrency) as ex:
-        futs = [ex.submit(one, k, q, e) for k, q, e in jobs]
-        for i, fut in enumerate(as_completed(futs), 1):
-            r = fut.result()
-            results.append(r)
+        futures = [ex.submit(one, kind, question, engine) for kind, question, engine in jobs]
+        for i, future in enumerate(as_completed(futures), 1):
+            r = future.result()
             tag = "ERR" if r.get("err") else f"{len(r.get('citations', []))} cites"
             print(f"[{i}/{len(jobs)}] {r['engine']:14s} {r['kind']:7s} {tag}")
+    results = [future.result() for future in futures]
 
     report(args, engines, tracked_names, owned, competitors, results)
 
@@ -226,6 +241,7 @@ def report(args, engines, tracked_names, owned, competitors, results) -> None:
     print("   on purpose: the same brand ranks differently on each engine.\n")
     supply = defaultdict(lambda: defaultdict(int))  # engine -> domain -> count
     leaderboard = defaultdict(lambda: defaultdict(int))  # engine -> vendor -> queries named
+    organic_named = {}
     for e in engines:
         rows = [r for r in per_engine[e["name"]] if r["kind"] == "organic"]
         nq = len(rows)
@@ -255,8 +271,12 @@ def report(args, engines, tracked_names, owned, competitors, results) -> None:
             if total:
                 you = vendor_cites.get(args.brand, 0)
                 cite_share = f" · citation share among tracked vendors: {100*you/total:.0f}% ({you}/{total})"
-        rate = f"{you_named}/{nq}" if nq else "0/0"
-        print(f"   {e['name']:14s} named in {rate} organic answers{cite_share}")
+        attempts = sum(r["kind"] == "organic" and r["engine"] == e["name"] for r in results)
+        organic_named[e["name"]] = {
+            "named": you_named, "total": nq, "attempted": attempts, "failed": attempts - nq,
+        }
+        print(f"   {e['name']:14s} named in {you_named}/{nq} organic answers{cite_share}"
+              f" ({nq} answered of {attempts} attempted)")
 
     # ── 2. Branded recall (its own line — NEVER averaged into #1) ──────────────
     print("\n2. BRANDED RECALL  (does the engine know you when handed your name?)")
@@ -264,7 +284,7 @@ def report(args, engines, tracked_names, owned, competitors, results) -> None:
     print("   not an awareness problem. Do not blend this into visibility.\n")
     for e in engines:
         rows = [r for r in per_engine[e["name"]] if r["kind"] == "branded"]
-        hit = sum(1 for r in rows if args.brand.lower() in (r["content"] or "").lower())
+        hit = sum(1 for r in rows if named_in(r["content"], [args.brand]))
         nq = len(rows)
         print(f"   {e['name']:14s} recognized in {hit}/{nq} branded prompts")
 
@@ -302,6 +322,8 @@ def report(args, engines, tracked_names, owned, competitors, results) -> None:
     print("  by CPC/intent, run a larger prompt set for significance, and track")
     print("  the trend month over month. Methodology + the four numbers:")
     print("  https://dariadovzhikova.substack.com/p/your-ai-visibility-number-is-lying")
+    print("  Human-reviewed GTM Labs baseline: https://gtm-labs.co/pricing"
+          "?utm_source=github&utm_medium=cli&utm_campaign=ai_visibility_scorer")
     print("-" * 70)
 
     if args.json:
@@ -309,16 +331,8 @@ def report(args, engines, tracked_names, owned, competitors, results) -> None:
             "brand": args.brand,
             "category": args.category,
             "engines": [e["name"] for e in engines],
-            "organic_named": {
-                e["name"]: {
-                    "named": sum(
-                        1 for r in per_engine[e["name"]]
-                        if r["kind"] == "organic" and args.brand in named_in(r["content"], tracked_names)
-                    ),
-                    "total": sum(1 for r in per_engine[e["name"]] if r["kind"] == "organic"),
-                }
-                for e in engines
-            },
+            "organic_named": organic_named,
+            "checks": results,
             "supply_chain": {e["name"]: dict(supply[e["name"]]) for e in engines},
             "generated_at": int(time.time()),
         }
@@ -335,10 +349,12 @@ def main() -> None:
     )
     ap.add_argument("--brand", required=True, help="Your product/company name")
     ap.add_argument("--category", required=True, help="What buyers are shopping for, in plain words")
-    ap.add_argument("--domain", default="", help="Your domain, e.g. example.com (enables citation-share %)")
+    ap.add_argument("--domain", default="", help="Your domain, e.g. example.com (enables citation share)")
     ap.add_argument("--competitors", default="",
                     help="Comma list of Name:domain, e.g. 'Apify:apify.com,Bright Data:brightdata.com'")
-    ap.add_argument("--prompts", type=int, default=8, help="How many non-branded questions (default 8)")
+    prompts = ap.add_mutually_exclusive_group()
+    prompts.add_argument("--prompts", type=int, default=8, help="How many non-branded questions (default 8)")
+    prompts.add_argument("--prompt-file", help="Use one unbranded question per line from a UTF-8 file")
     ap.add_argument("--engines", default="", help="Comma list to limit engines (default: perplexity,chatgpt-search)")
     ap.add_argument("--concurrency", type=int, default=6, help="Parallel API calls (default 6)")
     ap.add_argument("--json", default="", help="Also write machine-readable results to this path")

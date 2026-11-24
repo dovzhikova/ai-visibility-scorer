@@ -43,6 +43,8 @@ That gap — recognized every time it's *handed* the name, named zero times when
 
 ## Install & run
 
+Read a [sample report with a partial response](examples/reviewed-run.json). It uses synthetic answers so you can inspect a complete run offline. The existing Firecrawl examples are historical snapshots.
+
 No dependencies beyond Python 3.8+. One API key — [OpenRouter](https://openrouter.ai/keys), which fronts Perplexity, OpenAI, and others behind a single key.
 
 ```bash
@@ -66,11 +68,16 @@ python3 ai_visibility.py \
 | `--domain` | Your domain — enables the citation-share % |
 | `--competitors` | `Name:domain` pairs, comma-separated |
 | `--prompts` | How many non-branded questions to generate (default 8) |
+| `--prompt-file PATH` | Reuse an exact question set across runs. Supply a UTF-8 file with one unbranded question per line. |
 | `--engines` | Limit engines, e.g. `perplexity` (default: `perplexity,chatgpt-search`) |
 | `--json PATH` | Also write machine-readable results |
 | `--concurrency` | Parallel API calls (default 6) |
 
 Cost is a few cents to ~$0.30 a run depending on `--prompts` and engines. Run it monthly and watch the trend — a single run on a small prompt set is noisy, so treat one number as a data point, not a verdict.
+
+In a JSON report, `organic_named.total` counts answered organic questions per engine. Compare it with `attempted` and `failed` to see coverage. Each entry in `checks` records the question, requested model, answer, citation URLs and any error. Save the question file alongside the report when repeating a measurement. The matcher counts brand mentions, including critical or neutral mentions. Read the answer to judge whether the engine recommended the product.
+
+For a human review across four engines, the [GTM Labs AI Answer Visibility Baseline](https://gtm-labs.co/pricing?utm_source=github&utm_medium=readme&utm_campaign=ai_visibility_scorer) includes 48 unbranded buyer questions and two proposed experiments.
 
 ## How it works
 

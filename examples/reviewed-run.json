@@ -1,0 +1,108 @@
+{
+  "brand": "Example Planner",
+  "category": "project planning (synthetic example)",
+  "engines": [
+    "perplexity"
+  ],
+  "organic_named": {
+    "perplexity": {
+      "named": 1,
+      "total": 2,
+      "attempted": 3,
+      "failed": 1
+    }
+  },
+  "checks": [
+    {
+      "kind": "organic",
+      "engine": "perplexity",
+      "model": "perplexity/sonar",
+      "prompt": "Which tools support project planning offline?",
+      "cites_web": true,
+      "content": "Example Planner supports local plans.",
+      "citations": [
+        "https://planner.example/docs/offline"
+      ],
+      "err": null
+    },
+    {
+      "kind": "organic",
+      "engine": "perplexity",
+      "model": "perplexity/sonar",
+      "prompt": "How do teams track versioned plans?",
+      "cites_web": true,
+      "content": "The cost of planning scales linearly.",
+      "citations": [
+        "https://weave.example/versioning"
+      ],
+      "err": null
+    },
+    {
+      "kind": "organic",
+      "engine": "perplexity",
+      "model": "perplexity/sonar",
+      "prompt": "Which tools support a shared roadmap?",
+      "cites_web": true,
+      "content": null,
+      "citations": [],
+      "err": "TimeoutError: Synthetic timeout"
+    },
+    {
+      "kind": "branded",
+      "engine": "perplexity",
+      "model": "perplexity/sonar",
+      "prompt": "What is Example Planner?",
+      "cites_web": true,
+      "content": "Example Planner is a fictional planning tool used in this example.",
+      "citations": [],
+      "err": null
+    },
+    {
+      "kind": "branded",
+      "engine": "perplexity",
+      "model": "perplexity/sonar",
+      "prompt": "Is Example Planner any good? What do people say about it?",
+      "cites_web": true,
+      "content": "Example Planner is a fictional planning tool used in this example.",
+      "citations": [],
+      "err": null
+    },
+    {
+      "kind": "branded",
+      "engine": "perplexity",
+      "model": "perplexity/sonar",
+      "prompt": "Example Planner pricing and plans",
+      "cites_web": true,
+      "content": "Example Planner is a fictional planning tool used in this example.",
+      "citations": [],
+      "err": null
+    },
+    {
+      "kind": "branded",
+      "engine": "perplexity",
+      "model": "perplexity/sonar",
+      "prompt": "Example Planner vs its alternatives \u2014 how does it compare?",
+      "cites_web": true,
+      "content": "Example Planner is a fictional planning tool used in this example.",
+      "citations": [],
+      "err": null
+    },
+    {
+      "kind": "branded",
+      "engine": "perplexity",
+      "model": "perplexity/sonar",
+      "prompt": "Should I use Example Planner for my project?",
+      "cites_web": true,
+      "content": "Example Planner is a fictional planning tool used in this example.",
+      "citations": [],
+      "err": null
+    }
+  ],
+  "supply_chain": {
+    "perplexity": {
+      "planner.example": 1,
+      "weave.example": 1
+    }
+  },
+  "generated_at": 1795521600
+}
