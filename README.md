@@ -1,10 +1,10 @@
 # ai-visibility-scorer
 
-**Measure whether ChatGPT, Perplexity, and other AI engines actually recommend your product — the honest way.**
+**Check which products appear in answers from Perplexity and OpenAI models, then inspect the answers and sources.**
 
-Half of B2B software buyers now start vendor research in an AI assistant instead of Google. So "does the AI name us?" is a real metric. The problem is that most tools measuring it are measuring the wrong thing, and reporting one number that hides the answer.
+Run the same buyer questions for your product and its competitors. The report shows how often each API names your product and which domains appear in the responses.
 
-This is a small, zero-dependency script that does it the way it should be done. It runs on your own machine, costs a few cents per run, and prints four numbers no dashboard should hide.
+The script runs locally with the Python standard library. OpenRouter bills API usage to your account.
 
 ```
 $ python3 ai_visibility.py --brand "Firecrawl" --domain firecrawl.dev \
@@ -43,7 +43,7 @@ That gap — recognized every time it's *handed* the name, named zero times when
 
 ## Install & run
 
-Read a [sample report with a partial response](examples/reviewed-run.json). It uses synthetic answers so you can inspect a complete run offline. The existing Firecrawl examples are historical snapshots.
+Read a [sample report with a partial response](examples/reviewed-run.json). It uses synthetic answers so you can inspect a complete run offline. The existing Firecrawl examples are historical snapshots. A [five-question transactional email example](examples/transactional-email-questions.txt) is ready to use with `--prompt-file`.
 
 No dependencies beyond Python 3.8+. One API key — [OpenRouter](https://openrouter.ai/keys), which fronts Perplexity, OpenAI, and others behind a single key.
 
@@ -73,7 +73,7 @@ python3 ai_visibility.py \
 | `--json PATH` | Also write machine-readable results |
 | `--concurrency` | Parallel API calls (default 6) |
 
-Cost is a few cents to ~$0.30 a run depending on `--prompts` and engines. Run it monthly and watch the trend — a single run on a small prompt set is noisy, so treat one number as a data point, not a verdict.
+Budget for model tokens and any searches. Pricing and answer length can change. For a repeat measurement, keep the questions, model IDs and search configuration fixed.
 
 In a JSON report, `organic_named.total` counts answered organic questions per engine. Compare it with `attempted` and `failed` to see coverage. Each entry in `checks` records the question, requested model, answer, citation URLs and any error. Save the question file alongside the report when repeating a measurement. The matcher counts brand mentions, including critical or neutral mentions. Read the answer to judge whether the engine recommended the product.
 
@@ -82,7 +82,7 @@ For a human review across four engines, the [GTM Labs AI Answer Visibility Basel
 ## How it works
 
 - **Prompt generation** — an LLM writes the non-branded, high-intent questions a buyer asks in your category, explicitly instructed never to name a vendor. Falls back to templates if generation fails.
-- **Fan-out** — every prompt runs against each engine. Perplexity Sonar and GPT-4o-search retrieve the live web and return real citations.
+- **Engines.** Each question goes to Perplexity Sonar and to GPT-5.4 Mini via OpenRouter. The existing `chatgpt-search` option selects the OpenAI API model with Exa web search available once per answer. The model decides whether to search. The report records the requested model and tool configuration. These API results measure a different surface from the consumer ChatGPT interface.
 - **Scoring** — organic visibility counts how often you're named/cited without being handed your name; branded recall is measured separately with name-in-prompt questions; the supply chain is the set of domains cited on organic questions.
 
 The counting is per-question (a vendor scores at most once per question per engine) so one heavily-cited listicle can't inflate anyone's number.

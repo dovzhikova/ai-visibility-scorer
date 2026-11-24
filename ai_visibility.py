@@ -43,12 +43,18 @@ from urllib.parse import urlparse
 OR_BASE = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/")
 URL_RE = re.compile(r"https?://[^\s\)\]\"'>}]+")
 
-# Default engines. `cites=True` engines retrieve the live web and return real
-# citations; framing-only engines (Claude, Gemini without browsing) are offered
-# as opt-in because they measure who a model *names*, not who it cites.
+# Keep engine names stable so existing CLI filters and JSON consumers still work.
 DEFAULT_ENGINES = [
     {"name": "perplexity", "model": "perplexity/sonar", "cites": True},
-    {"name": "chatgpt-search", "model": "openai/gpt-4o-search-preview", "cites": True},
+    {
+        "name": "chatgpt-search",
+        "model": "openai/gpt-5.4-mini",
+        "cites": True,
+        "search_tool": {
+            "type": "openrouter:web_search",
+            "parameters": {"engine": "exa", "max_uses": 1},
+        },
+    },
 ]
 
 BRANDED_TEMPLATES = [
@@ -65,11 +71,12 @@ def die(msg: str, code: int = 1) -> None:
     sys.exit(code)
 
 
-def openrouter(model: str, prompt: str, key: str, timeout: int = 120):
-    """Return (content, [citation_urls]). Raises on transport error."""
-    body = json.dumps(
-        {"model": model, "messages": [{"role": "user", "content": prompt}]}
-    ).encode()
+def openrouter(model: str, prompt: str, key: str, timeout: int = 120, *, search_tool=None):
+    """Return the answer and its citation URLs."""
+    payload = {"model": model, "messages": [{"role": "user", "content": prompt}]}
+    if search_tool:
+        payload["tools"] = [search_tool]
+    body = json.dumps(payload).encode()
     req = urllib.request.Request(
         OR_BASE + "/chat/completions",
         data=body,
@@ -206,8 +213,10 @@ def run(args) -> None:
     def one(kind, prompt, engine):
         check = {"kind": kind, "engine": engine["name"], "model": engine["model"],
                  "prompt": prompt, "cites_web": engine["cites"]}
+        if "search_tool" in engine:
+            check["search_tool"] = engine["search_tool"]
         try:
-            content, cites = openrouter(engine["model"], prompt, key)
+            content, cites = openrouter(engine["model"], prompt, key, search_tool=engine.get("search_tool"))
             if not content.strip():
                 raise ValueError("Empty model response")
             check.update(content=content, citations=list(dict.fromkeys(cites)), err=None)
