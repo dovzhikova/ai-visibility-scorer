@@ -12,6 +12,23 @@ import ai_visibility as scorer
 
 
 class ScoringTests(unittest.TestCase):
+    def test_request_payload_for_each_default_engine(self):
+        for engine in scorer.DEFAULT_ENGINES:
+            with self.subTest(engine=engine["name"]):
+                response = {"choices": [{"message": {"content": "Example answer"}}]}
+                with patch.object(scorer.urllib.request, "urlopen", return_value=io.StringIO(json.dumps(response))) as post:
+                    scorer.openrouter(engine["model"], "Which API?", "test", search_tool=engine.get("search_tool"))
+                payload = json.loads(post.call_args.args[0].data)
+                self.assertEqual(payload["messages"], [{"role": "user", "content": "Which API?"}])
+                if engine["name"] == "chatgpt-search":
+                    self.assertEqual(payload["model"], "openai/gpt-5.4-mini")
+                    self.assertEqual(payload["tools"], [{
+                        "type": "openrouter:web_search", "parameters": {"engine": "exa", "max_uses": 1}
+                    }])
+                else:
+                    self.assertEqual(payload["model"], "perplexity/sonar")
+                    self.assertNotIn("tools", payload)
+
     def test_whole_brand_names(self):
         names = ["Linear", "C++", "Bright Data"]
         self.assertEqual(scorer.named_in("Cost grows linearly.", names), set())
@@ -31,7 +48,7 @@ class ScoringTests(unittest.TestCase):
         questions = ["How does the cost scale?", "Which issue trackers offer offline support?"]
         seen = []
 
-        def answer(model, prompt, key):
+        def answer(model, prompt, key, *, search_tool=None):
             seen.append(prompt)
             if prompt == questions[0]:
                 return "Cost scales linearly.", ["https://weave.dev/docs"]
