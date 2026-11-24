@@ -1,0 +1,5 @@
+Which transactional email APIs would you shortlist for a small SaaS sending password resets and receipts, and why?
+Which services let a developer test transactional email in staging without delivering messages to real customers?
+Which transactional email providers would you shortlist for an app that requires EU data residency, and what should we verify about message logs?
+Which email APIs help a developer prevent duplicate sends on retries and investigate delayed or bounced messages?
+Which transactional email services would you compare for an app growing from 10,000 to 100,000 sends per month, and how do their billing models differ?
